@@ -2,10 +2,12 @@
 #include <chrono>
 #include <functional>
 #include <iostream>
+#include <random>
 
 using namespace std;
 using namespace std::chrono;
 
+// define abstract class
 #define DERIVE_A(base, derived)                                                \
   class derived : public base {                                                \
     int derived_##member;                                                      \
@@ -15,6 +17,7 @@ using namespace std::chrono;
     int m() const { return derived_##member; }                                 \
   };
 
+// define concrete class
 #define DERIVE_C(base, derived, num)                                           \
   class derived : public base {                                                \
     int derived_##member;                                                      \
@@ -112,8 +115,10 @@ void run(char const *title, decltype(dynamic_run) runner,
 
 void test(int num) {
   std::array<root *, COUNT> m = {0};
+  std::mt19937_64 rng(num);
+  std::uniform_int_distribution<size_t> dist(0, newAnimalsCount - 1);
   for (auto &e : m) {
-    e = newAnimals[++num % newAnimalsCount]();
+    e = newAnimals[dist(rng)]();
   }
   for (int i = 0; i < 3; ++i) {
     run("dynamic_cast", dynamic_run, m, 2 <= i);
@@ -122,5 +127,5 @@ void test(int num) {
 }
 
 int main(int argc, char const *argv[]) {
-  test(argc < 2 ? 100 : std::atoi(argv[1]));
+  test(argc < 2 ? 0 : std::atoi(argv[1]));
 }
