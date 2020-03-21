@@ -2,115 +2,154 @@
 #include <chrono>
 #include <functional>
 #include <iostream>
-
+#include <random>
+#include <type_traits>
 using namespace std;
 using namespace std::chrono;
 
-#define DERIVE_A(base, derived)                                                \
+// define class
+#define DERIVE(base, derived, num)                                             \
   class derived : public base {                                                \
     int derived_##member;                                                      \
                                                                                \
   public:                                                                      \
-    derived() : derived_##member(0) {}                                             \
-  };
-
-#define DERIVE_C(base, derived, num)                                           \
-  class derived : public base {                                                \
-    int derived_##member;                                                      \
-                                                                               \
-  public:                                                                      \
-    derived() : derived_##member(0) {}                                             \
-    int hoge() const override { return num; };                                 \
-    int get_##derived() const { return num; };                                 \
+    static inline constexpr int tid = num;                                     \
+    derived() : derived_##member(0) {}                                         \
+    int m() const { return derived_##member; }                                 \
+    int derived##_proc() const { return num; };                                \
+    bool is_a(int t) const override { return t == tid || base::is_a(t); }      \
   };
 
 class root {
 public:
   virtual ~root() {}
-  virtual int hoge() const = 0;
+  virtual bool is_a(int t) const { return false; }
 };
 
-constexpr int MONKEY_VAL = 256;
+DERIVE(root, vertebrate, __LINE__)
+DERIVE(vertebrate, fish, __LINE__)
+DERIVE(fish, amphibian, __LINE__)
+DERIVE(fish, shark, __LINE__)
+DERIVE(fish, tuna, __LINE__)
+DERIVE(amphibian, reptile, __LINE__)
+DERIVE(amphibian, newt, __LINE__)
+DERIVE(amphibian, frog, __LINE__)
+DERIVE(reptile, mammal, __LINE__)
+DERIVE(reptile, crocodile, __LINE__)
+DERIVE(reptile, snake, __LINE__)
+DERIVE(mammal, monkey, __LINE__)
+DERIVE(monkey, aye_aye, __LINE__)
+DERIVE(monkey, tamarin, __LINE__)
+DERIVE(monkey, hominidae, __LINE__)
+DERIVE(hominidae, gorilla, __LINE__)
+DERIVE(hominidae, human, __LINE__)
+DERIVE(mammal, whale, __LINE__)
+DERIVE(whale, blue_whale, __LINE__)
+DERIVE(whale, narwhal, __LINE__)
+DERIVE(whale, sperm_whale, __LINE__)
+DERIVE(reptile, bird, __LINE__)
+DERIVE(bird, penguin, __LINE__)
+DERIVE(penguin, king_penguin, __LINE__)
+DERIVE(penguin, magellanic_penguin, __LINE__)
+DERIVE(penguin, galapagos_penguin, __LINE__)
+DERIVE(bird, sparrow, __LINE__)
 
-DERIVE_A(root, vertebrate)
-DERIVE_A(vertebrate, fish)
-DERIVE_A(fish, amphibian)
-DERIVE_C(fish, shark, __LINE__)
-DERIVE_C(fish, tuna, __LINE__)
-DERIVE_A(amphibian, reptile)
-DERIVE_C(amphibian, newt, __LINE__)
-DERIVE_C(amphibian, frog, __LINE__)
-DERIVE_A(reptile, mammal)
-DERIVE_C(reptile, crocodile, __LINE__)
-DERIVE_C(reptile, snake, __LINE__)
-DERIVE_C(mammal, monkey, MONKEY_VAL)
-DERIVE_C(mammal, whale, __LINE__)
-DERIVE_A(reptile, bird)
-DERIVE_C(bird, penguin, __LINE__)
-DERIVE_C(bird, sparrow, __LINE__)
-
-constexpr size_t COUNT = 10000;
+constexpr size_t COUNT = 1'000'000;
 
 std::function<root *()> newAnimals[] = {
-    []() -> root * { return new shark; },
-    []() -> root * { return new tuna; },
-    []() -> root * { return new newt; },
-    []() -> root * { return new frog; },
-    []() -> root * { return new crocodile; },
-    []() -> root * { return new snake; },
-    []() -> root * { return new monkey; },
-    []() -> root * { return new whale; },
-    []() -> root * { return new penguin; },
-    []() -> root * { return new sparrow; },
+    []() -> root * { return new shark(); },
+    []() -> root * { return new tuna(); },
+    []() -> root * { return new newt(); },
+    []() -> root * { return new frog(); },
+    []() -> root * { return new crocodile(); },
+    []() -> root * { return new snake(); },
+    []() -> root * { return new aye_aye(); },
+    []() -> root * { return new tamarin(); },
+    []() -> root * { return new gorilla(); },
+    []() -> root * { return new human(); },
+    []() -> root * { return new blue_whale(); },
+    []() -> root * { return new narwhal(); },
+    []() -> root * { return new sperm_whale(); },
+    []() -> root * { return new king_penguin(); },
+    []() -> root * { return new magellanic_penguin(); },
+    []() -> root * { return new galapagos_penguin(); },
+    []() -> root * { return new sparrow(); },
 };
 
 constexpr size_t newAnimalsCount = sizeof(newAnimals) / sizeof(*newAnimals);
 
-int dynamic_bench(std::array<root *, COUNT> const &m) {
+int dynamic_run(std::array<root *, COUNT> const &m) {
   int sum = 0;
   for (auto const &e : m) {
-    if (auto p = dynamic_cast<monkey const *>(e)) {
-      sum +=p->get_monkey();
+    if (auto p = dynamic_cast<mammal const *>(e)) {
+      sum += p->mammal_proc();
+    }
+    if (auto p = dynamic_cast<bird const *>(e)) {
+      sum += p->bird_proc();
     }
   }
   return sum;
 }
 
-int static_bench(std::array<root *, COUNT> const &m) {
+template <typename cast> //
+inline cast animal_cast(root *p) {
+  if (p->is_a(std::remove_pointer<cast>::type::tid)) {
+    return static_cast<cast>(p);
+  }
+  return nullptr;
+}
+
+template <typename cast> //
+inline cast animal_cast(root const *p) {
+  if (p->is_a(std::remove_pointer<cast>::type::tid)) {
+    return static_cast<cast>(p);
+  }
+  return nullptr;
+}
+
+int static_run(std::array<root *, COUNT> const &m) {
   int sum = 0;
   for (auto const &e : m) {
-    if ( MONKEY_VAL == e->hoge() ){
-      sum += static_cast<monkey const *>(e)->get_monkey();
+    if (auto p = animal_cast<mammal const *>(e)) {
+      sum += p->mammal_proc();
+    }
+    if (auto p = animal_cast<bird const *>(e)) {
+      sum += p->bird_proc();
     }
   }
   return sum;
+}
+
+void run(char const *title, decltype(dynamic_run) runner,
+         std::array<root *, COUNT> const &m, bool production) {
+  auto start = high_resolution_clock::now();
+  auto r = runner(m);
+  auto end = high_resolution_clock::now();
+  if (production) {
+    std::cout << title
+              << "\n"
+                 "  res="
+              << r
+              << "\n"
+                 "  "
+              << duration_cast<microseconds>(end - start).count() * 1e-3
+              << "ms\n";
+  }
 }
 
 void test(int num) {
   std::array<root *, COUNT> m = {0};
+  std::mt19937_64 rng(num);
+  std::uniform_int_distribution<size_t> dist(0, newAnimalsCount - 1);
   for (auto &e : m) {
-    e = newAnimals[++num % newAnimalsCount]();
+    e = newAnimals[dist(rng)]();
   }
-  for( int i=0 ; i<3 ; ++i ){
-    {
-      auto start = high_resolution_clock::now();
-      auto r = dynamic_bench(m);
-      auto end = high_resolution_clock::now();
-      std::cout << "res=" << r << "\n";
-      std::cout << duration_cast<microseconds>(end - start).count() * 1e-3
-                << "ms\n";
-    }
-    {
-      auto start = high_resolution_clock::now();
-      auto r = static_bench(m);
-      auto end = high_resolution_clock::now();
-      std::cout << "res=" << r << "\n";
-      std::cout << duration_cast<microseconds>(end - start).count() * 1e-3
-                << "ms\n";
-    }
+  for (int i = 0; i < 3; ++i) {
+    run("dynamic_cast", dynamic_run, m, 2 <= i);
+    run("animal_cast", static_run, m, 2 <= i);
   }
 }
 
 int main(int argc, char const *argv[]) {
-  test(argc < 2 ? 100 : std::atoi(argv[1]));
+  test(argc < 2 ? 0 : std::atoi(argv[1]));
 }
