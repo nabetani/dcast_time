@@ -3,18 +3,21 @@
 #include <functional>
 #include <iostream>
 #include <random>
-
+#include <type_traits>
 using namespace std;
 using namespace std::chrono;
 
 // define abstract class
-#define DERIVE_A(base, derived)                                                \
+#define DERIVE_A(base, derived, num)                                           \
   class derived : public base {                                                \
     int derived_##member;                                                      \
                                                                                \
   public:                                                                      \
+    static inline constexpr int type = num;                                    \
     derived() : derived_##member(0) {}                                         \
     int m() const { return derived_##member; }                                 \
+    int derived##_proc() const { return num; };                                \
+    bool is_a(int t) const override { return t == type || base::is_a(t); }     \
   };
 
 // define concrete class
@@ -26,31 +29,42 @@ using namespace std::chrono;
     static inline constexpr int type = num;                                    \
     derived() : derived_##member(0) {}                                         \
     int m() const { return derived_##member; }                                 \
-    int get_type() const override { return num; };                             \
-    int get_##derived() const { return num; };                                 \
+    int derived##_proc() const { return num; };                                \
+    bool is_a(int t) const override { return t == type || base::is_a(t); }     \
   };
 
 class root {
 public:
   virtual ~root() {}
-  virtual int get_type() const = 0;
+  virtual bool is_a(int t) const { return false; }
 };
 
-DERIVE_A(root, vertebrate)
-DERIVE_A(vertebrate, fish)
-DERIVE_A(fish, amphibian)
+DERIVE_A(root, vertebrate, __LINE__)
+DERIVE_A(vertebrate, fish, __LINE__)
+DERIVE_A(fish, amphibian, __LINE__)
 DERIVE_C(fish, shark, __LINE__)
 DERIVE_C(fish, tuna, __LINE__)
-DERIVE_A(amphibian, reptile)
+DERIVE_A(amphibian, reptile, __LINE__)
 DERIVE_C(amphibian, newt, __LINE__)
 DERIVE_C(amphibian, frog, __LINE__)
-DERIVE_A(reptile, mammal)
+DERIVE_A(reptile, mammal, __LINE__)
 DERIVE_C(reptile, crocodile, __LINE__)
 DERIVE_C(reptile, snake, __LINE__)
-DERIVE_C(mammal, monkey, __LINE__)
-DERIVE_C(mammal, whale, __LINE__)
-DERIVE_A(reptile, bird)
-DERIVE_C(bird, penguin, __LINE__)
+DERIVE_A(mammal, monkey, __LINE__)
+DERIVE_C(monkey, aye_aye, __LINE__)
+DERIVE_C(monkey, tamarin, __LINE__)
+DERIVE_C(monkey, hominidae, __LINE__)
+DERIVE_C(hominidae, gorilla, __LINE__)
+DERIVE_C(hominidae, human, __LINE__)
+DERIVE_A(mammal, whale, __LINE__)
+DERIVE_C(whale, blue_whale, __LINE__)
+DERIVE_C(whale, narwhal, __LINE__)
+DERIVE_C(whale, sperm_whale, __LINE__)
+DERIVE_A(reptile, bird, __LINE__)
+DERIVE_A(bird, penguin, __LINE__)
+DERIVE_C(penguin, king_penguin, __LINE__)
+DERIVE_C(penguin, magellanic_penguin, __LINE__)
+DERIVE_C(penguin, galapagos_penguin, __LINE__)
 DERIVE_C(bird, sparrow, __LINE__)
 
 constexpr size_t COUNT = 1'000'000;
@@ -73,24 +87,40 @@ constexpr size_t newAnimalsCount = sizeof(newAnimals) / sizeof(*newAnimals);
 int dynamic_run(std::array<root *, COUNT> const &m) {
   int sum = 0;
   for (auto const &e : m) {
-    if (auto p = dynamic_cast<monkey const *>(e)) {
-      sum += p->get_monkey();
+    if (auto p = dynamic_cast<mammal const *>(e)) {
+      sum += p->mammal_proc();
     }
-    if (auto p = dynamic_cast<penguin const *>(e)) {
-      sum += p->get_penguin();
+    if (auto p = dynamic_cast<bird const *>(e)) {
+      sum += p->bird_proc();
     }
   }
   return sum;
 }
 
+template <typename cast> //
+inline cast animal_cast(root *p) {
+  if (p->is_a(std::remove_pointer<cast>::type::type)) {
+    return static_cast<cast>(p);
+  }
+  return nullptr;
+}
+
+template <typename cast> //
+inline cast animal_cast(root const *p) {
+  if (p->is_a(std::remove_pointer<cast>::type::type)) {
+    return static_cast<cast>(p);
+  }
+  return nullptr;
+}
+
 int static_run(std::array<root *, COUNT> const &m) {
   int sum = 0;
   for (auto const &e : m) {
-    if (monkey::type == e->get_type()) {
-      sum += static_cast<monkey const *>(e)->get_monkey();
+    if (auto p = animal_cast<mammal const *>(e)) {
+      sum += p->mammal_proc();
     }
-    if (penguin::type == e->get_type()) {
-      sum += static_cast<penguin const *>(e)->get_penguin();
+    if (auto p = animal_cast<bird const *>(e)) {
+      sum += p->bird_proc();
     }
   }
   return sum;
