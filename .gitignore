@@ -36,3 +36,6 @@
 */Makefile
 */CMakeFiles
 */release
+
+graph.dot
+graph.png
