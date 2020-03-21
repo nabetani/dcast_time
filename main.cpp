@@ -11,7 +11,8 @@ using namespace std::chrono;
     int derived_##member;                                                      \
                                                                                \
   public:                                                                      \
-    derived() : derived_##member(0) {}                                             \
+    derived() : derived_##member(0) {}                                         \
+    int m() const { return derived_##member; }                                 \
   };
 
 #define DERIVE_C(base, derived, num)                                           \
@@ -19,18 +20,18 @@ using namespace std::chrono;
     int derived_##member;                                                      \
                                                                                \
   public:                                                                      \
-    derived() : derived_##member(0) {}                                             \
-    int hoge() const override { return num; };                                 \
+    static inline constexpr int type = num;                                    \
+    derived() : derived_##member(0) {}                                         \
+    int m() const { return derived_##member; }                                 \
+    int get_type() const override { return num; };                             \
     int get_##derived() const { return num; };                                 \
   };
 
 class root {
 public:
   virtual ~root() {}
-  virtual int hoge() const = 0;
+  virtual int get_type() const = 0;
 };
-
-constexpr int MONKEY_VAL = 256;
 
 DERIVE_A(root, vertebrate)
 DERIVE_A(vertebrate, fish)
@@ -43,13 +44,13 @@ DERIVE_C(amphibian, frog, __LINE__)
 DERIVE_A(reptile, mammal)
 DERIVE_C(reptile, crocodile, __LINE__)
 DERIVE_C(reptile, snake, __LINE__)
-DERIVE_C(mammal, monkey, MONKEY_VAL)
+DERIVE_C(mammal, monkey, __LINE__)
 DERIVE_C(mammal, whale, __LINE__)
 DERIVE_A(reptile, bird)
 DERIVE_C(bird, penguin, __LINE__)
 DERIVE_C(bird, sparrow, __LINE__)
 
-constexpr size_t COUNT = 10000;
+constexpr size_t COUNT = 1'000'000;
 
 std::function<root *()> newAnimals[] = {
     []() -> root * { return new shark; },
@@ -66,24 +67,47 @@ std::function<root *()> newAnimals[] = {
 
 constexpr size_t newAnimalsCount = sizeof(newAnimals) / sizeof(*newAnimals);
 
-int dynamic_bench(std::array<root *, COUNT> const &m) {
+int dynamic_run(std::array<root *, COUNT> const &m) {
   int sum = 0;
   for (auto const &e : m) {
     if (auto p = dynamic_cast<monkey const *>(e)) {
-      sum +=p->get_monkey();
+      sum += p->get_monkey();
+    }
+    if (auto p = dynamic_cast<penguin const *>(e)) {
+      sum += p->get_penguin();
     }
   }
   return sum;
 }
 
-int static_bench(std::array<root *, COUNT> const &m) {
+int static_run(std::array<root *, COUNT> const &m) {
   int sum = 0;
   for (auto const &e : m) {
-    if ( MONKEY_VAL == e->hoge() ){
+    if (monkey::type == e->get_type()) {
       sum += static_cast<monkey const *>(e)->get_monkey();
+    }
+    if (penguin::type == e->get_type()) {
+      sum += static_cast<penguin const *>(e)->get_penguin();
     }
   }
   return sum;
+}
+
+void run(char const *title, decltype(dynamic_run) runner,
+         std::array<root *, COUNT> const &m, bool production) {
+  auto start = high_resolution_clock::now();
+  auto r = runner(m);
+  auto end = high_resolution_clock::now();
+  if (production) {
+    std::cout << title
+              << "\n"
+                 "  res="
+              << r
+              << "\n"
+                 "  "
+              << duration_cast<microseconds>(end - start).count() * 1e-3
+              << "ms\n";
+  }
 }
 
 void test(int num) {
@@ -91,23 +115,9 @@ void test(int num) {
   for (auto &e : m) {
     e = newAnimals[++num % newAnimalsCount]();
   }
-  for( int i=0 ; i<3 ; ++i ){
-    {
-      auto start = high_resolution_clock::now();
-      auto r = dynamic_bench(m);
-      auto end = high_resolution_clock::now();
-      std::cout << "res=" << r << "\n";
-      std::cout << duration_cast<microseconds>(end - start).count() * 1e-3
-                << "ms\n";
-    }
-    {
-      auto start = high_resolution_clock::now();
-      auto r = static_bench(m);
-      auto end = high_resolution_clock::now();
-      std::cout << "res=" << r << "\n";
-      std::cout << duration_cast<microseconds>(end - start).count() * 1e-3
-                << "ms\n";
-    }
+  for (int i = 0; i < 3; ++i) {
+    run("dynamic_cast", dynamic_run, m, 2 <= i);
+    run("static_cast", static_run, m, 2 <= i);
   }
 }
 
