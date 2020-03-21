@@ -146,7 +146,7 @@ void test(int num) {
   }
   for (int i = 0; i < 3; ++i) {
     run("dynamic_cast", dynamic_run, m, 2 <= i);
-    run("static_cast", static_run, m, 2 <= i);
+    run("animal_cast", static_run, m, 2 <= i);
   }
 }
 
