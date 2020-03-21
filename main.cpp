@@ -7,30 +7,17 @@
 using namespace std;
 using namespace std::chrono;
 
-// define abstract class
-#define DERIVE_A(base, derived, num)                                           \
+// define class
+#define DERIVE(base, derived, num)                                             \
   class derived : public base {                                                \
     int derived_##member;                                                      \
                                                                                \
   public:                                                                      \
-    static inline constexpr int type = num;                                    \
+    static inline constexpr int tid = num;                                     \
     derived() : derived_##member(0) {}                                         \
     int m() const { return derived_##member; }                                 \
     int derived##_proc() const { return num; };                                \
-    bool is_a(int t) const override { return t == type || base::is_a(t); }     \
-  };
-
-// define concrete class
-#define DERIVE_C(base, derived, num)                                           \
-  class derived : public base {                                                \
-    int derived_##member;                                                      \
-                                                                               \
-  public:                                                                      \
-    static inline constexpr int type = num;                                    \
-    derived() : derived_##member(0) {}                                         \
-    int m() const { return derived_##member; }                                 \
-    int derived##_proc() const { return num; };                                \
-    bool is_a(int t) const override { return t == type || base::is_a(t); }     \
+    bool is_a(int t) const override { return t == tid || base::is_a(t); }      \
   };
 
 class root {
@@ -39,47 +26,54 @@ public:
   virtual bool is_a(int t) const { return false; }
 };
 
-DERIVE_A(root, vertebrate, __LINE__)
-DERIVE_A(vertebrate, fish, __LINE__)
-DERIVE_A(fish, amphibian, __LINE__)
-DERIVE_C(fish, shark, __LINE__)
-DERIVE_C(fish, tuna, __LINE__)
-DERIVE_A(amphibian, reptile, __LINE__)
-DERIVE_C(amphibian, newt, __LINE__)
-DERIVE_C(amphibian, frog, __LINE__)
-DERIVE_A(reptile, mammal, __LINE__)
-DERIVE_C(reptile, crocodile, __LINE__)
-DERIVE_C(reptile, snake, __LINE__)
-DERIVE_A(mammal, monkey, __LINE__)
-DERIVE_C(monkey, aye_aye, __LINE__)
-DERIVE_C(monkey, tamarin, __LINE__)
-DERIVE_C(monkey, hominidae, __LINE__)
-DERIVE_C(hominidae, gorilla, __LINE__)
-DERIVE_C(hominidae, human, __LINE__)
-DERIVE_A(mammal, whale, __LINE__)
-DERIVE_C(whale, blue_whale, __LINE__)
-DERIVE_C(whale, narwhal, __LINE__)
-DERIVE_C(whale, sperm_whale, __LINE__)
-DERIVE_A(reptile, bird, __LINE__)
-DERIVE_A(bird, penguin, __LINE__)
-DERIVE_C(penguin, king_penguin, __LINE__)
-DERIVE_C(penguin, magellanic_penguin, __LINE__)
-DERIVE_C(penguin, galapagos_penguin, __LINE__)
-DERIVE_C(bird, sparrow, __LINE__)
+DERIVE(root, vertebrate, __LINE__)
+DERIVE(vertebrate, fish, __LINE__)
+DERIVE(fish, amphibian, __LINE__)
+DERIVE(fish, shark, __LINE__)
+DERIVE(fish, tuna, __LINE__)
+DERIVE(amphibian, reptile, __LINE__)
+DERIVE(amphibian, newt, __LINE__)
+DERIVE(amphibian, frog, __LINE__)
+DERIVE(reptile, mammal, __LINE__)
+DERIVE(reptile, crocodile, __LINE__)
+DERIVE(reptile, snake, __LINE__)
+DERIVE(mammal, monkey, __LINE__)
+DERIVE(monkey, aye_aye, __LINE__)
+DERIVE(monkey, tamarin, __LINE__)
+DERIVE(monkey, hominidae, __LINE__)
+DERIVE(hominidae, gorilla, __LINE__)
+DERIVE(hominidae, human, __LINE__)
+DERIVE(mammal, whale, __LINE__)
+DERIVE(whale, blue_whale, __LINE__)
+DERIVE(whale, narwhal, __LINE__)
+DERIVE(whale, sperm_whale, __LINE__)
+DERIVE(reptile, bird, __LINE__)
+DERIVE(bird, penguin, __LINE__)
+DERIVE(penguin, king_penguin, __LINE__)
+DERIVE(penguin, magellanic_penguin, __LINE__)
+DERIVE(penguin, galapagos_penguin, __LINE__)
+DERIVE(bird, sparrow, __LINE__)
 
 constexpr size_t COUNT = 1'000'000;
 
 std::function<root *()> newAnimals[] = {
-    []() -> root * { return new shark; },
-    []() -> root * { return new tuna; },
-    []() -> root * { return new newt; },
-    []() -> root * { return new frog; },
-    []() -> root * { return new crocodile; },
-    []() -> root * { return new snake; },
-    []() -> root * { return new monkey; },
-    []() -> root * { return new whale; },
-    []() -> root * { return new penguin; },
-    []() -> root * { return new sparrow; },
+    []() -> root * { return new shark(); },
+    []() -> root * { return new tuna(); },
+    []() -> root * { return new newt(); },
+    []() -> root * { return new frog(); },
+    []() -> root * { return new crocodile(); },
+    []() -> root * { return new snake(); },
+    []() -> root * { return new aye_aye(); },
+    []() -> root * { return new tamarin(); },
+    []() -> root * { return new gorilla(); },
+    []() -> root * { return new human(); },
+    []() -> root * { return new blue_whale(); },
+    []() -> root * { return new narwhal(); },
+    []() -> root * { return new sperm_whale(); },
+    []() -> root * { return new king_penguin(); },
+    []() -> root * { return new magellanic_penguin(); },
+    []() -> root * { return new galapagos_penguin(); },
+    []() -> root * { return new sparrow(); },
 };
 
 constexpr size_t newAnimalsCount = sizeof(newAnimals) / sizeof(*newAnimals);
@@ -99,7 +93,7 @@ int dynamic_run(std::array<root *, COUNT> const &m) {
 
 template <typename cast> //
 inline cast animal_cast(root *p) {
-  if (p->is_a(std::remove_pointer<cast>::type::type)) {
+  if (p->is_a(std::remove_pointer<cast>::type::tid)) {
     return static_cast<cast>(p);
   }
   return nullptr;
@@ -107,7 +101,7 @@ inline cast animal_cast(root *p) {
 
 template <typename cast> //
 inline cast animal_cast(root const *p) {
-  if (p->is_a(std::remove_pointer<cast>::type::type)) {
+  if (p->is_a(std::remove_pointer<cast>::type::tid)) {
     return static_cast<cast>(p);
   }
   return nullptr;
